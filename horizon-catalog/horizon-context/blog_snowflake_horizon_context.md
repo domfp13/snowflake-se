@@ -1,5 +1,7 @@
 # Snowflake Horizon Context: The Governed Context Layer for AI, BI and Apps
 
+> **Code:** [github.com/domfp13/snowflake-se/horizon-catalog/horizon-context/setup](https://github.com/domfp13/snowflake-se/tree/main/horizon-catalog/horizon-context/setup)
+
 ## The Problem: Same Data, Different Answers
 
 Your head of sales sees $14.2 million in Q3 revenue. Your CFO sees $12.8 million. Both asked an AI agent the same question this morning. Same data. Why the discrepancy?
@@ -194,6 +196,95 @@ The complete lineage visible in Snowsight:
 
 ---
 
+## Deep Dive: Open Semantic Interchange (OSI)
+
+One of the most significant components of the Collect pillar is the **Open Semantic Interchange (OSI)** specification. Understanding what it actually is — technically — clarifies why it matters for Horizon Context.
+
+### The Problem OSI Solves
+
+Every tool in your stack defines "Revenue" differently:
+
+- **Snowflake Semantic View:** `SUM(unit_price * quantity)`
+- **dbt metric YAML:** `measure: revenue, type: sum, sql: amount`
+- **Tableau calculated field:** `SUM([Amount])`
+- **Sigma metric:** custom aggregation in the workbook
+- **Power BI DAX measure:** `Revenue = SUMX(Orders, Orders[UnitPrice] * Orders[Qty])`
+
+They all mean the same thing but are expressed in incompatible, proprietary formats. You cannot take your semantic model from one tool and use it in another without re-authoring.
+
+### What OSI Actually Is
+
+OSI is a **YAML/JSON file format** — nothing more, nothing less. It is a portable document that describes:
+
+- **Datasets** — which physical tables, their primary keys
+- **Fields** — dimensions and measures, with the SQL expression in each dialect
+- **Relationships** — how datasets join (foreign keys)
+- **Metrics** — aggregate expressions like `SUM(orders.amount)`
+- **AI context** — synonyms, instructions for LLMs
+
+The key technical insight is the **`dialects` array** on expressions:
+
+```yaml
+metrics:
+  - name: total_revenue
+    expression:
+      dialects:
+        - dialect: ANSI_SQL
+          expression: SUM(orders.amount)
+        - dialect: SNOWFLAKE
+          expression: SUM(orders.amount)::NUMBER(38,2)
+        - dialect: TABLEAU
+          expression: SUM([Amount])
+```
+
+The same metric carries its translation for each platform. A converter reads the OSI file, picks the dialect it understands, and imports the definition natively.
+
+### How It Works in Practice
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              OSI YAML file (the "interchange")           │
+│  semantic_model → datasets → fields → metrics           │
+│                 → relationships                          │
+│                 → ai_context                             │
+│                 → custom_extensions (vendor-specific)    │
+└────────────┬──────────────┬──────────────┬──────────────┘
+             │              │              │
+     converter/dbt   converter/snowflake   converter/gooddata
+             │              │              │
+         dbt metrics   Snowflake SV DDL   GoodData MAQL
+```
+
+The OSI repository already includes **reference converters** that can:
+- Export a dbt semantic layer → OSI YAML
+- Import OSI YAML → Snowflake Semantic View DDL
+- Import OSI YAML → GoodData metrics
+- (Planned: Salesforce, Polaris, Databricks, Sigma, ThoughtSpot)
+
+### What OSI is NOT
+
+- **Not a runtime layer** — it does not execute queries or serve metrics at query time
+- **Not a replacement** for Snowflake Semantic Views or dbt metrics — it is the **bridge** between them
+- **Not a new semantic layer product** — it is a **file format spec**
+
+Think of it as **OpenLineage for business definitions**: OpenLineage standardizes *where data flows*; OSI standardizes *what data means*.
+
+### The 54+ Partner Ecosystem
+
+The working group includes: Alation, Atlan, AtScale, BlackRock, Coalesce, Collibra, Cube, Databricks, DataHub, dbt Labs, Domo, Firebolt, Hex, Honeydew, Informatica, Instacart, JetBrains, Lightdash, Mistral AI, Omni, Preset, Qlik, RelationalAI, Salesforce, Select Star, Sigma, Starburst, ThoughtSpot, and more.
+
+### How OSI Connects to This Demo
+
+In our pipeline, we created `ORDER_ANALYTICS_SEMANTIC_VIEW` using Snowflake DDL. As OSI converters mature, you could:
+
+1. **Export** your Snowflake Semantic View → OSI YAML
+2. **Import** that same OSI YAML into dbt, Tableau, Sigma, or any tool with a converter
+3. Guarantee that "TOTAL_REVENUE" means the exact same thing everywhere — without re-authoring
+
+This closes the loop on Horizon Context: governed definitions created once in Snowflake, interchanged to any tool via OSI, and consumed with consistent meaning everywhere.
+
+---
+
 ## References
 
 ### Snowflake Official
@@ -212,6 +303,18 @@ The complete lineage visible in Snowsight:
 - [External Lineage (OpenLineage API)](https://docs.snowflake.com/en/user-guide/external-lineage)
 - [Snowflake Postgres: pg_lake](https://docs.snowflake.com/en/user-guide/snowflake-postgres/postgres-pg_lake)
 - [Data Lineage in Snowsight](https://docs.snowflake.com/en/user-guide/ui-snowsight-lineage)
+
+### Open Semantic Interchange (OSI)
+
+- [OSI GitHub Repository (Apache 2.0)](https://github.com/open-semantic-interchange/OSI)
+- [OSI Core Specification (spec.md)](https://github.com/open-semantic-interchange/OSI/blob/main/core-spec/spec.md)
+- [Snowflake Blog: OSI Specification Finalized (Jan 2026)](https://www.snowflake.com/en/blog/open-semantic-interchanges-specs-finalized/)
+- [dbt Labs: What the OSI Spec Means for Metrics, Semantics, and AI](https://www.getdbt.com/blog/the-osi-spec-updates)
+- [Unwind Data: OSI Open Semantic Interchange Guide](https://unwinddata.com/osi-open-semantic-interchange-guide)
+- [OSI Official Website](http://open-semantic-interchange.org/)
+- [SBI Group: Open Semantic Interchange Overview](https://www.sbi-group.com/blog/open-semantic-interchange-osi)
+- [DataHub Joins OSI Working Group (Dec 2025)](https://datahub.com/news/datahub-joins-snowflake-open-semantic-interchange/)
+- [Collibra Backs OSI (Nov 2025)](https://www.hpcwire.com/bigdatawire/this-just-in/collibra-backs-open-semantic-interchange-to-standardize-enterprise-data-definitions/)
 
 ### Third-Party Analysis
 
