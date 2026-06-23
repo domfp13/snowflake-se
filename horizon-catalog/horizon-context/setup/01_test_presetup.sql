@@ -62,3 +62,27 @@ CREATE OR REPLACE ICEBERG TABLE orders_iceberg
 
 -- Step 3: Query it
 SELECT * FROM orders_iceberg;
+
+-- ============================================================
+-- Service Account for BI tools (Sigma, Power BI, etc.)
+-- ============================================================
+USE ROLE ACCOUNTADMIN;
+
+CREATE USER IF NOT EXISTS FINANCE_DASHBOARD_SVC
+  PASSWORD = '<CHANGEME>'
+  DEFAULT_ROLE = SYSADMIN
+  DEFAULT_WAREHOUSE = GENERIC
+  DEFAULT_NAMESPACE = HRZN_DB.ANALYTICS
+  TYPE = SERVICE
+  MUST_CHANGE_PASSWORD = FALSE
+  COMMENT = 'Service account for BI tool connections (Sigma, Power BI)';
+
+GRANT ROLE SYSADMIN TO USER FINANCE_DASHBOARD_SVC;
+
+-- Exempt service account from MFA (required for driver-based BI connections)
+CREATE OR REPLACE AUTHENTICATION POLICY HRZN_DB.PUBLIC.NO_MFA_SERVICE_POLICY
+  MFA_ENROLLMENT = 'OPTIONAL'
+  CLIENT_TYPES = ('SNOWFLAKE_UI', 'DRIVERS')
+  COMMENT = 'Auth policy for service accounts - MFA not required';
+
+ALTER USER FINANCE_DASHBOARD_SVC SET AUTHENTICATION POLICY HRZN_DB.PUBLIC.NO_MFA_SERVICE_POLICY;

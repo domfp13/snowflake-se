@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # External Lineage Registration
-# Registers upstream (PostgreSQL -> RAW) and downstream (ANALYTICS -> Power BI)
+# Registers upstream (PostgreSQL -> RAW) and downstream (ANALYTICS -> Power BI, Sigma)
 # lineage events for the pg_lake Iceberg pipeline.
 # =============================================================================
 #
@@ -140,6 +140,23 @@ send_lineage "V_ORDER_ANALYTICS -> Power BI Report" '{
   "schemaURL": "https://openlineage.io/spec/0-0-1/OpenLineage.json",
   "inputs": [{"namespace": "snowflake://'"$ACCOUNT"'", "name": "HRZN_DB.ANALYTICS.V_ORDER_ANALYTICS"}],
   "outputs": [{"namespace": "powerbi://app.powerbi.com", "name": "Order Analytics Report", "facets": {"datasetType": {"datasetType": "REPORT"}}}]
+}'
+
+# =============================================================================
+# DOWNSTREAM: HRZN_DB.ANALYTICS.V_ORDER_ANALYTICS -> Sigma Computing Workbook
+# Uses sigma:// namespace to show Sigma icon in Snowsight lineage
+# =============================================================================
+echo "=== Registering DOWNSTREAM lineage (ANALYTICS -> Sigma Computing) ==="
+
+send_lineage "V_ORDER_ANALYTICS -> Sigma Computing Workbook" '{
+  "eventType": "COMPLETE",
+  "eventTime": "2026-06-23T10:00:00.000Z",
+  "job": {"namespace": "sigma://app.sigmacomputing.com", "name": "Order_Analytics_Sigma_Workbook_Refresh"},
+  "run": {"runId": "d3e4f5a6-b7c8-9012-def0-345678901bcd"},
+  "producer": "https://github.com/OpenLineage/OpenLineage/blob/v1-0-0/client",
+  "schemaURL": "https://openlineage.io/spec/0-0-1/OpenLineage.json",
+  "inputs": [{"namespace": "snowflake://'"$ACCOUNT"'", "name": "HRZN_DB.ANALYTICS.V_ORDER_ANALYTICS"}],
+  "outputs": [{"namespace": "sigma://app.sigmacomputing.com", "name": "Order Analytics - Sigma Workbook", "facets": {"datasetType": {"datasetType": "REPORT"}}}]
 }'
 
 echo ""
