@@ -143,19 +143,19 @@ send_lineage "V_ORDER_ANALYTICS -> Power BI Report" '{
 }'
 
 # =============================================================================
-# DOWNSTREAM: HRZN_DB.ANALYTICS.V_ORDER_ANALYTICS -> Sigma Computing Workbook
+# DOWNSTREAM: HRZN_DB.ANALYTICS.ORDER_ANALYTICS_SEMANTIC_VIEW -> Sigma Workbook
 # Uses sigma:// namespace to show Sigma icon in Snowsight lineage
 # =============================================================================
-echo "=== Registering DOWNSTREAM lineage (ANALYTICS -> Sigma Computing) ==="
+echo "=== Registering DOWNSTREAM lineage (Semantic View -> Sigma Computing) ==="
 
-send_lineage "V_ORDER_ANALYTICS -> Sigma Computing Workbook" '{
+send_lineage "ORDER_ANALYTICS_SEMANTIC_VIEW -> Sigma Computing Workbook" '{
   "eventType": "COMPLETE",
   "eventTime": "2026-06-23T10:00:00.000Z",
   "job": {"namespace": "sigma://app.sigmacomputing.com", "name": "Order_Analytics_Sigma_Workbook_Refresh"},
-  "run": {"runId": "d3e4f5a6-b7c8-9012-def0-345678901bcd"},
+  "run": {"runId": "d3e4f5a6-b7c8-9012-def0-345678901bce"},
   "producer": "https://github.com/OpenLineage/OpenLineage/blob/v1-0-0/client",
   "schemaURL": "https://openlineage.io/spec/0-0-1/OpenLineage.json",
-  "inputs": [{"namespace": "snowflake://'"$ACCOUNT"'", "name": "HRZN_DB.ANALYTICS.V_ORDER_ANALYTICS"}],
+  "inputs": [{"namespace": "snowflake://'"$ACCOUNT"'", "name": "HRZN_DB.ANALYTICS.ORDER_ANALYTICS_SEMANTIC_VIEW"}],
   "outputs": [{"namespace": "sigma://app.sigmacomputing.com", "name": "Order Analytics - Sigma Workbook", "facets": {"datasetType": {"datasetType": "REPORT"}}}]
 }'
 
