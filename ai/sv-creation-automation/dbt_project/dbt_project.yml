@@ -1,0 +1,57 @@
+# ============================================================================
+# Snowflake CoWork + dbt Cloud demo - dbt project config
+# ----------------------------------------------------------------------------
+# Lives in: demos/snowflake_cowork_dbt/dbt_project  (set as the "Project
+# subdirectory" in dbt Cloud).
+#
+# Connection (managed in dbt Cloud, not here):
+#   Database  : COWORK_DBT
+#   Warehouse : COWORK_DBT_WH
+#   Role      : COWORK_DBT_ROLE
+#   Schema    : PUBLIC   <- everything builds here for demo simplicity
+#
+# We intentionally do NOT set custom +schema values, so every model lands in
+# the connection's target schema (PUBLIC).
+# ============================================================================
+
+name: 'cowork_dbt'
+version: '1.0.0'
+config-version: 2
+
+# dbt Cloud supplies the warehouse connection (managed in the dbt Cloud project
+# environments); this profile name is only a placeholder.
+profile: 'default'
+
+# dbt Cloud CLI: points this project at the dbt Cloud project so `dbt` commands
+# execute in dbt Cloud using ~/.dbt/dbt_cloud.yml. project-id is not a secret.
+dbt-cloud:
+  project-id: "550219"
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  cowork_dbt:
+    +materialized: view
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table
+      core:
+        +materialized: table
+      ecommerce:
+        +materialized: table
+      marketing:
+        +materialized: table
+      support:
+        +materialized: table
+    semantic_view:
+      +materialized: semantic_view

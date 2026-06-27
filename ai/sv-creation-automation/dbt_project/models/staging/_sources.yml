@@ -1,0 +1,183 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Raw e-commerce source data loaded into Snowflake (see 02_setup_raw_data.sql)."
+    database: COWORK_DBT
+    schema: PUBLIC
+    tables:
+      - name: customers
+        identifier: RAW_CUSTOMERS
+        description: "One row per customer, including region and segment."
+        columns:
+          - name: customer_id
+            description: "Primary key."
+            data_tests:
+              - unique
+              - not_null
+          - name: region
+            data_tests:
+              - accepted_values:
+                  arguments:
+                    values: ['North America', 'EMEA', 'APAC', 'LATAM']
+
+      - name: orders
+        identifier: RAW_ORDERS
+        description: "One row per order placed by a customer."
+        # freshness + loaded_at_field are configs in Fusion (must live under config:).
+        # Powers `dbt source freshness` - the agent-takes-action beat.
+        config:
+          loaded_at_field: "CAST(order_date AS TIMESTAMP)"
+          freshness:
+            warn_after: {count: 2, period: day}
+            error_after: {count: 7, period: day}
+        columns:
+          - name: order_id
+            data_tests:
+              - unique
+              - not_null
+          - name: customer_id
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'customers')
+                    field: customer_id
+          - name: status
+            data_tests:
+              - accepted_values:
+                  arguments:
+                    values: ['COMPLETED', 'CANCELLED', 'PENDING']
+
+      - name: refunds
+        identifier: RAW_REFUNDS
+        description: "Partial refunds issued against completed orders."
+        columns:
+          - name: refund_id
+            data_tests:
+              - unique
+              - not_null
+          - name: order_id
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'orders')
+                    field: order_id
+
+      - name: product_categories
+        identifier: RAW_PRODUCT_CATEGORIES
+        description: "Product category hierarchy with margin tiers."
+        columns:
+          - name: category_id
+            data_tests:
+              - unique
+              - not_null
+          - name: category_name
+            data_tests:
+              - not_null
+
+      - name: products
+        identifier: RAW_PRODUCTS
+        description: "Product catalog with pricing and category assignment."
+        columns:
+          - name: product_id
+            data_tests:
+              - unique
+              - not_null
+          - name: category_id
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'product_categories')
+                    field: category_id
+
+      - name: payments
+        identifier: RAW_PAYMENTS
+        description: "Payment transactions per order (an order can have split payments)."
+        columns:
+          - name: payment_id
+            data_tests:
+              - unique
+              - not_null
+          - name: order_id
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'orders')
+                    field: order_id
+
+      - name: shipments
+        identifier: RAW_SHIPMENTS
+        description: "Shipping and delivery tracking per order."
+        columns:
+          - name: shipment_id
+            data_tests:
+              - unique
+              - not_null
+          - name: order_id
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'orders')
+                    field: order_id
+
+      - name: promotions
+        identifier: RAW_PROMOTIONS
+        description: "Promo codes with discount type, value, and validity dates."
+        columns:
+          - name: promotion_id
+            data_tests:
+              - unique
+              - not_null
+          - name: promo_code
+            data_tests:
+              - unique
+              - not_null
+
+      - name: support_tickets
+        identifier: RAW_SUPPORT_TICKETS
+        description: "Customer support tickets with priority, status, and resolution tracking."
+        columns:
+          - name: ticket_id
+            data_tests:
+              - unique
+              - not_null
+          - name: customer_id
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'customers')
+                    field: customer_id
+
+      - name: campaigns
+        identifier: RAW_CAMPAIGNS
+        description: "Marketing campaigns with budget, spend, and channel info."
+        columns:
+          - name: campaign_id
+            data_tests:
+              - unique
+              - not_null
+          - name: campaign_name
+            data_tests:
+              - not_null
+
+      - name: campaign_events
+        identifier: RAW_CAMPAIGN_EVENTS
+        description: "Campaign interaction events: impressions, clicks, and conversions."
+        columns:
+          - name: event_id
+            data_tests:
+              - unique
+              - not_null
+          - name: campaign_id
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('raw', 'campaigns')
+                    field: campaign_id
