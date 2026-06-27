@@ -1,0 +1,282 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: "Customer dimension with region and segment attributes."
+    columns:
+      - name: customer_id
+        description: "Primary key."
+        data_tests:
+          - unique
+          - not_null
+      - name: region
+        description: "Customer region: North America, EMEA, APAC, LATAM."
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['North America', 'EMEA', 'APAC', 'LATAM']
+      - name: segment
+        description: "Customer segment: Enterprise, Mid-Market, SMB."
+        data_tests:
+          - not_null
+
+  - name: fct_orders
+    description: "Fact table with one row per order, enriched with customer attributes."
+    columns:
+      - name: order_id
+        description: "Primary key."
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Foreign key to dim_customers."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id
+      - name: order_amount
+        description: "Dollar amount of the order."
+        data_tests:
+          - not_null
+
+  - name: fct_refunds
+    description: "Refunds issued against completed orders, enriched with customer attributes."
+    columns:
+      - name: refund_id
+        description: "Primary key."
+        data_tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: "Foreign key to fct_orders."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+
+  - name: dim_products
+    description: "Product dimension denormalized with category attributes and margin."
+    columns:
+      - name: product_id
+        description: "Primary key."
+        data_tests:
+          - unique
+          - not_null
+      - name: product_name
+        description: "Product display name."
+        data_tests:
+          - not_null
+      - name: category_name
+        description: "Category the product belongs to."
+      - name: margin_tier
+        description: "Category margin classification: High Margin, Medium Margin, Low Margin."
+      - name: list_price
+        description: "Customer-facing price."
+        data_tests:
+          - not_null
+      - name: cost_price
+        description: "Internal cost of the product."
+        data_tests:
+          - not_null
+      - name: margin_amount
+        description: "list_price minus cost_price."
+      - name: is_active
+        description: "Whether the product is currently available for sale."
+
+  - name: dim_promotions
+    description: "Promotion dimension with computed active/expired status."
+    columns:
+      - name: promotion_id
+        description: "Primary key."
+        data_tests:
+          - unique
+          - not_null
+      - name: promo_code
+        description: "Customer-facing promo code string."
+        data_tests:
+          - unique
+          - not_null
+      - name: discount_type
+        description: "Type of discount: Percentage, Fixed Amount, Free Shipping, Buy One Get One."
+      - name: discount_value
+        description: "Numeric value of the discount."
+      - name: promotion_status
+        description: "Computed status: Active, Upcoming, or Expired."
+        data_tests:
+          - not_null
+
+  - name: fct_payments
+    description: "Payment transactions enriched with customer region and segment."
+    columns:
+      - name: payment_id
+        description: "Primary key."
+        data_tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: "Foreign key to fct_orders."
+        data_tests:
+          - not_null
+      - name: payment_method
+        description: "Payment method: Credit Card, Debit Card, PayPal, Wire Transfer, Gift Card."
+        data_tests:
+          - not_null
+      - name: payment_amount
+        description: "Dollar amount of this payment."
+        data_tests:
+          - not_null
+      - name: payment_status
+        description: "Whether payment succeeded or failed."
+        data_tests:
+          - not_null
+
+  - name: fct_shipments
+    description: "Shipment facts enriched with delivery duration and customer attributes."
+    columns:
+      - name: shipment_id
+        description: "Primary key."
+        data_tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: "Foreign key to fct_orders."
+        data_tests:
+          - not_null
+      - name: shipping_method
+        description: "Shipping tier: Standard, Express, Overnight, Economy."
+        data_tests:
+          - not_null
+      - name: carrier
+        description: "Shipping carrier: FedEx, UPS, DHL, USPS."
+        data_tests:
+          - not_null
+      - name: delivery_days
+        description: "Days between ship and delivery."
+      - name: shipping_cost
+        description: "Cost of shipping."
+        data_tests:
+          - not_null
+
+  - name: fct_support_tickets
+    description: "Support tickets enriched with customer context and resolution time."
+    columns:
+      - name: ticket_id
+        description: "Primary key."
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Foreign key to dim_customers."
+        data_tests:
+          - not_null
+      - name: category
+        description: "Ticket category: Billing, Shipping, Product Quality, Returns, Account, Technical."
+        data_tests:
+          - not_null
+      - name: priority
+        description: "Ticket priority: Low, Medium, High, Critical."
+        data_tests:
+          - not_null
+      - name: status
+        description: "Ticket status: Open, In Progress, Resolved, Closed."
+        data_tests:
+          - not_null
+      - name: resolution_hours
+        description: "Hours from creation to resolution (null if unresolved)."
+
+  - name: fct_campaign_events
+    description: "Campaign interaction events enriched with campaign metadata."
+    columns:
+      - name: event_id
+        description: "Primary key."
+        data_tests:
+          - unique
+          - not_null
+      - name: campaign_id
+        description: "Foreign key to campaigns."
+        data_tests:
+          - not_null
+      - name: event_type
+        description: "Event type: impression, click, conversion."
+        data_tests:
+          - not_null
+      - name: device_type
+        description: "Device: mobile, desktop, tablet."
+
+  - name: mart_revenue
+    description: "Governed revenue metric aggregated by region and month. Changes during demo beat #2."
+    columns:
+      - name: region
+        description: "Customer region."
+        data_tests:
+          - not_null
+      - name: revenue_month
+        description: "Month the orders were placed (truncated)."
+        data_tests:
+          - not_null
+      - name: revenue
+        description: "Total gross revenue from completed orders in that region/month."
+        data_tests:
+          - not_null
+
+  - name: mart_shipping_performance
+    description: "Shipping performance aggregated by region, month, and method."
+    columns:
+      - name: region
+        description: "Customer region."
+        data_tests:
+          - not_null
+      - name: ship_month
+        description: "Month of shipment."
+        data_tests:
+          - not_null
+      - name: shipping_method
+        description: "Shipping tier."
+        data_tests:
+          - not_null
+      - name: shipment_count
+        description: "Number of shipments."
+        data_tests:
+          - not_null
+      - name: avg_delivery_days
+        description: "Average days from ship to delivery."
+        data_tests:
+          - not_null
+      - name: total_shipping_cost
+        description: "Total shipping cost for the group."
+        data_tests:
+          - not_null
+
+  - name: mart_campaign_roi
+    description: "Campaign ROI metrics: impressions, clicks, conversions, and efficiency ratios."
+    columns:
+      - name: campaign_id
+        description: "Primary key."
+        data_tests:
+          - unique
+          - not_null
+      - name: campaign_name
+        description: "Campaign display name."
+        data_tests:
+          - not_null
+      - name: channel
+        description: "Marketing channel."
+        data_tests:
+          - not_null
+      - name: spend
+        description: "Actual campaign spend."
+      - name: impressions
+        description: "Total impression events."
+      - name: clicks
+        description: "Total click events."
+      - name: conversions
+        description: "Total conversion events."
+      - name: click_through_rate
+        description: "Clicks / impressions * 100."
+      - name: conversions_per_1k_spend
+        description: "Conversions per $1,000 spent."
